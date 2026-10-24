@@ -420,7 +420,7 @@ function About() {
                         {[
                             { name: "Aria Thorne", role: "Chief Executive Officer", focus: "Systems Strategy & Scale", img: "/images/author (1).jpg" },
                             { name: "Devon Chen", role: "Head of Infrastructure", focus: "Distributed Consensus", img: "/images/author (2).jpg" },
-                            { name: "Elena Rostova", role: "VP of Automation", focus: "Autonomous Robotics", img: "/images/author (3).jpg" },
+                            { name: "Elena Rostova", role: "VP of Automation", focus: "Autonomous Robotics", img: "/images/about4.jpg" },
                             { name: "Marcus Vance", role: "Principal Architect", focus: "Zero-Trust Cryptography", img: "/images/author (4).jpg" }
                         ].map((member, i) => (
                             <div key={i} className="group rounded-2xl bg-[#0d0d0d] border border-white/10 overflow-hidden hover:border-orange-500/50 shadow-sm hover:shadow-[0_0_25px_rgba(249,115,22,0.15)] transition-all">
