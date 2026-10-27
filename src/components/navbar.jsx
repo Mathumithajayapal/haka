@@ -105,9 +105,11 @@ function Navbar({ isScrolled: propIsScrolled, theme = "dark", activePage }) {
     }
   }, [activePage]);
 
+  // Sync route and close mobile menu on hash/popstate navigation
   useEffect(() => {
     const handleRouteSync = () => {
       setCurrentActive(determineActiveRoute());
+      setIsMobileMenuOpen(false);
     };
     window.addEventListener('hashchange', handleRouteSync);
     window.addEventListener('popstate', handleRouteSync);
@@ -116,6 +118,45 @@ function Navbar({ isScrolled: propIsScrolled, theme = "dark", activePage }) {
       window.removeEventListener('popstate', handleRouteSync);
     };
   }, [activePage]);
+
+  // Lock background scroll when mobile hamburger menu is open
+  useEffect(() => {
+    if (isMobileMenuOpen) {
+      const originalBodyOverflow = document.body.style.overflow;
+      const originalHtmlOverflow = document.documentElement.style.overflow;
+
+      document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
+
+      return () => {
+        document.body.style.overflow = originalBodyOverflow;
+        document.documentElement.style.overflow = originalHtmlOverflow;
+      };
+    }
+  }, [isMobileMenuOpen]);
+
+  // Close mobile menu on desktop viewport resize (1024px+)
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 1024) {
+        setIsMobileMenuOpen(false);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Close mobile menu on Escape key
+  useEffect(() => {
+    if (!isMobileMenuOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setIsMobileMenuOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isMobileMenuOpen]);
 
   const isHomeActive = currentActive === 'home';
   const isAboutActive = currentActive === 'about';
@@ -160,8 +201,8 @@ function Navbar({ isScrolled: propIsScrolled, theme = "dark", activePage }) {
         {/* Top Bar: Always fixed & visible, with subtle blur backdrop when scrolled */}
         <header
           className={`w-full h-[80px] px-6 md:px-12 flex items-center justify-between transition-all duration-300 ${
-            activeDropdown
-              ? (isLight ? 'bg-white shadow-md' : 'bg-black')
+            activeDropdown || isMobileMenuOpen
+              ? (isLight ? 'bg-white shadow-md border-b border-slate-200' : 'bg-[#0a0a0a] border-b border-white/10')
               : isScrolled
                 ? (isLight
                     ? 'bg-white/95 backdrop-blur-xl border-b border-slate-200/90 shadow-sm'
@@ -409,14 +450,18 @@ function Navbar({ isScrolled: propIsScrolled, theme = "dark", activePage }) {
 
           {/* Mobile Hamburger Trigger */}
           <button
-            className={`lg:hidden p-2 ${isLight ? 'text-slate-900' : 'text-white'}`}
+            type="button"
+            aria-label={isMobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
+            className={`lg:hidden p-2 rounded-lg transition-colors cursor-pointer ${
+              isLight ? 'text-slate-900 hover:text-orange-600 hover:bg-slate-100' : 'text-white hover:text-orange-400 hover:bg-white/10'
+            }`}
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               {isMobileMenuOpen ? (
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
               ) : (
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 6h16M4 12h16M4 18h16" />
               )}
             </svg>
           </button>
@@ -539,152 +584,175 @@ function Navbar({ isScrolled: propIsScrolled, theme = "dark", activePage }) {
           </div>
         )}
 
-        {/* Mobile Full-Screen Dropdown */}
+        {/* Mobile Full-Screen Drawer */}
         {isMobileMenuOpen && (
-          <div className={`lg:hidden backdrop-blur-xl border-b px-6 py-8 space-y-6 ${
-            isLight ? 'bg-white/95 border-slate-200 text-slate-900' : 'bg-black/95 border-white/10 text-white'
-          }`}>
-            <div className={`border-b pb-4 ${isLight ? 'border-slate-200' : 'border-white/10'}`}>
-              <a
-                href="#home"
-                onClick={() => {
-                  setIsMobileMenuOpen(false);
-                  setCurrentActive('home');
-                  window.location.hash = '#home';
-                  window.dispatchEvent(new Event('hashchange'));
-                }}
-                className={`flex items-center justify-between text-sm font-bold tracking-[0.2em] uppercase py-2 px-3 rounded-lg transition-all ${
-                  isHomeActive
-                    ? 'text-orange-400 bg-orange-500/15 border border-orange-500/30'
-                    : isLight ? 'text-slate-800 hover:text-orange-500' : 'text-neutral-300 hover:text-white'
-                }`}
-              >
-                <span className="flex items-center gap-2">
-                  {isHomeActive && <span className="w-2 h-2 rounded-full bg-orange-500 animate-ping"></span>}
-                  HOME
-                </span>
-                {isHomeActive && <span className="text-[10px] font-mono tracking-widest text-orange-400 font-bold uppercase">ACTIVE</span>}
-              </a>
-            </div>
-
-            {['ABOUT US', 'SERVICES'].map((section) => {
-              const isSectionActive = section === 'ABOUT US' ? isAboutActive : isServicesActive;
-              return (
-                <div key={section} className={`border-b pb-4 ${isLight ? 'border-slate-200' : 'border-white/10'}`}>
-                  <a
-                    href={section === 'ABOUT US' ? '#about' : '#services'}
-                    onClick={() => {
-                      setIsMobileMenuOpen(false);
-                      setCurrentActive(section === 'ABOUT US' ? 'about' : 'services');
-                      window.location.hash = section === 'ABOUT US' ? '#about' : '#services';
+          <div
+            className={`lg:hidden fixed top-[80px] left-0 right-0 bottom-0 z-50 flex flex-col justify-between overflow-y-auto overscroll-contain transition-all duration-300 ${
+              isLight
+                ? 'bg-white text-slate-900 border-t border-slate-200 shadow-2xl'
+                : 'bg-[#0a0a0a] text-white border-t border-white/10 shadow-2xl'
+            }`}
+            style={{
+              WebkitOverflowScrolling: 'touch',
+              height: 'calc(100dvh - 80px)'
+            }}
+          >
+            {/* Scrollable Nav Links Section */}
+            <div className="px-6 py-6 space-y-6 flex-1">
+              {/* HOME */}
+              <div className={`border-b pb-4 ${isLight ? 'border-slate-200' : 'border-white/10'}`}>
+                <a
+                  href="#home"
+                  onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    setCurrentActive('home');
+                    if (window.location.hash === '#home' || window.location.hash === '') {
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    } else {
+                      window.location.hash = '#home';
                       window.dispatchEvent(new Event('hashchange'));
-                    }}
-                    className={`flex items-center justify-between text-xs font-bold tracking-[0.2em] uppercase mb-3 py-1.5 px-3 rounded-lg transition-all ${
-                      isSectionActive
-                        ? 'text-orange-400 bg-orange-500/15 border border-orange-500/30'
-                        : 'text-orange-500 hover:text-orange-600'
-                    }`}
-                  >
-                    <span className="flex items-center gap-2">
-                      {isSectionActive && <span className="w-2 h-2 rounded-full bg-orange-500 animate-ping"></span>}
-                      {section}
-                    </span>
-                    {isSectionActive && <span className="text-[10px] font-mono tracking-widest text-orange-400 font-bold uppercase">ACTIVE</span>}
-                  </a>
-                  <div className="grid grid-cols-1 gap-2 pl-2">
-                    {NAV_DATA[section].items.map((item, i) => (
-                      <a
-                        key={i}
-                        href={section === 'ABOUT US' ? '#about' : '#services'}
-                        onClick={() => {
-                          setIsMobileMenuOpen(false);
-                          setCurrentActive(section === 'ABOUT US' ? 'about' : 'services');
-                          window.location.hash = section === 'ABOUT US' ? '#about' : '#services';
-                          window.dispatchEvent(new Event('hashchange'));
-                        }}
-                        className={`text-sm py-1 ${isLight ? 'text-slate-600 hover:text-slate-900' : 'text-neutral-300 hover:text-white'}`}
-                      >
-                        {item.name}
-                      </a>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
+                    }
+                  }}
+                  className={`flex items-center justify-between text-sm font-bold tracking-[0.2em] uppercase py-2.5 px-3 rounded-lg transition-all ${
+                    isHomeActive
+                      ? 'text-orange-400 bg-orange-500/15 border border-orange-500/30'
+                      : isLight ? 'text-slate-800 hover:text-orange-500' : 'text-neutral-300 hover:text-white'
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    {isHomeActive && <span className="w-2 h-2 rounded-full bg-orange-500 animate-ping"></span>}
+                    HOME
+                  </span>
+                  {isHomeActive && <span className="text-[10px] font-mono tracking-widest text-orange-400 font-bold uppercase">ACTIVE</span>}
+                </a>
+              </div>
 
-            <div className={`border-b pb-4 ${isLight ? 'border-slate-200' : 'border-white/10'}`}>
-              <a
-                href="#portfolio"
-                onClick={() => {
-                  setIsMobileMenuOpen(false);
-                  setCurrentActive('portfolio');
-                  window.location.hash = '#portfolio';
-                  window.dispatchEvent(new Event('hashchange'));
-                }}
-                className={`flex items-center justify-between text-sm font-bold tracking-[0.2em] uppercase py-2 px-3 rounded-lg transition-all ${
-                  isPortfolioActive
-                    ? 'text-orange-400 bg-orange-500/15 border border-orange-500/30'
-                    : isLight ? 'text-slate-800 hover:text-orange-500' : 'text-neutral-300 hover:text-white'
-                }`}
-              >
-                <span className="flex items-center gap-2">
-                  {isPortfolioActive && <span className="w-2 h-2 rounded-full bg-orange-500 animate-ping"></span>}
-                  PORTFOLIO
-                </span>
-                {isPortfolioActive && <span className="text-[10px] font-mono tracking-widest text-orange-400 font-bold uppercase">ACTIVE</span>}
-              </a>
+              {/* ABOUT US & SERVICES */}
+              {['ABOUT US', 'SERVICES'].map((section) => {
+                const isSectionActive = section === 'ABOUT US' ? isAboutActive : isServicesActive;
+                return (
+                  <div key={section} className={`border-b pb-4 ${isLight ? 'border-slate-200' : 'border-white/10'}`}>
+                    <a
+                      href={section === 'ABOUT US' ? '#about' : '#services'}
+                      onClick={() => {
+                        setIsMobileMenuOpen(false);
+                        setCurrentActive(section === 'ABOUT US' ? 'about' : 'services');
+                        window.location.hash = section === 'ABOUT US' ? '#about' : '#services';
+                        window.dispatchEvent(new Event('hashchange'));
+                      }}
+                      className={`flex items-center justify-between text-xs font-bold tracking-[0.2em] uppercase mb-3 py-2 px-3 rounded-lg transition-all ${
+                        isSectionActive
+                          ? 'text-orange-400 bg-orange-500/15 border border-orange-500/30'
+                          : 'text-orange-500 hover:text-orange-600'
+                      }`}
+                    >
+                      <span className="flex items-center gap-2">
+                        {isSectionActive && <span className="w-2 h-2 rounded-full bg-orange-500 animate-ping"></span>}
+                        {section}
+                      </span>
+                      {isSectionActive && <span className="text-[10px] font-mono tracking-widest text-orange-400 font-bold uppercase">ACTIVE</span>}
+                    </a>
+                    <div className="grid grid-cols-1 gap-2 pl-3">
+                      {NAV_DATA[section].items.map((item, i) => (
+                        <a
+                          key={i}
+                          href={section === 'ABOUT US' ? '#about' : '#services'}
+                          onClick={() => {
+                            setIsMobileMenuOpen(false);
+                            setCurrentActive(section === 'ABOUT US' ? 'about' : 'services');
+                            window.location.hash = section === 'ABOUT US' ? '#about' : '#services';
+                            window.dispatchEvent(new Event('hashchange'));
+                          }}
+                          className={`text-sm py-1.5 transition-colors flex items-center justify-between group ${
+                            isLight ? 'text-slate-600 hover:text-slate-900' : 'text-neutral-400 hover:text-white'
+                          }`}
+                        >
+                          <span>{item.name}</span>
+                          <span className="text-orange-500 text-xs opacity-0 group-hover:opacity-100 transition-opacity">→</span>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* PORTFOLIO */}
+              <div className={`border-b pb-4 ${isLight ? 'border-slate-200' : 'border-white/10'}`}>
+                <a
+                  href="#portfolio"
+                  onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    setCurrentActive('portfolio');
+                    window.location.hash = '#portfolio';
+                    window.dispatchEvent(new Event('hashchange'));
+                  }}
+                  className={`flex items-center justify-between text-sm font-bold tracking-[0.2em] uppercase py-2.5 px-3 rounded-lg transition-all ${
+                    isPortfolioActive
+                      ? 'text-orange-400 bg-orange-500/15 border border-orange-500/30'
+                      : isLight ? 'text-slate-800 hover:text-orange-500' : 'text-neutral-300 hover:text-white'
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    {isPortfolioActive && <span className="w-2 h-2 rounded-full bg-orange-500 animate-ping"></span>}
+                    PORTFOLIO
+                  </span>
+                  {isPortfolioActive && <span className="text-[10px] font-mono tracking-widest text-orange-400 font-bold uppercase">ACTIVE</span>}
+                </a>
+              </div>
             </div>
 
-            <div className="flex flex-col gap-3 pt-2">
-              <a
-                href="#login"
-                onClick={() => {
-                  setIsMobileMenuOpen(false);
-                  if (window.location.hash === '#login') {
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                  } else {
-                    window.location.hash = '#login';
-                    window.dispatchEvent(new Event('hashchange'));
-                  }
-                }}
-                className={`w-full py-3 text-center text-xs font-bold uppercase tracking-widest border transition-colors ${
-                  isLight ? 'border-slate-300 text-slate-800 hover:border-orange-500' : 'border-white/20 text-white hover:border-orange-500'
-                }`}
-              >
-                LOG IN
-              </a>
-              <a
-                href="#contact"
-                onClick={() => {
-                  setIsMobileMenuOpen(false);
-                  if (window.location.hash === '#contact') {
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                  } else {
-                    window.location.hash = '#contact';
-                    window.dispatchEvent(new Event('hashchange'));
-                  }
-                }}
-                className={`w-full py-3 text-center text-xs font-bold uppercase tracking-widest border transition-colors ${
-                  isLight ? 'border-slate-300 text-slate-800 hover:border-orange-500' : 'border-white/20 text-white hover:border-orange-500'
-                }`}
-              >
-                CONTACT US
-              </a>
-              <a
-                href="#contact"
-                onClick={() => {
-                  setIsMobileMenuOpen(false);
-                  if (window.location.hash === '#contact') {
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                  } else {
-                    window.location.hash = '#contact';
-                    window.dispatchEvent(new Event('hashchange'));
-                  }
-                }}
-                className="w-full py-3.5 text-center text-xs font-bold uppercase tracking-widest bg-orange-600 text-white hover:bg-orange-700"
-              >
-                GET STARTED
-              </a>
+            {/* Pinned Bottom Actions: [LOG IN] and [GET STARTED] */}
+            <div className={`sticky bottom-0 p-5 sm:p-6 backdrop-blur-2xl border-t z-10 ${
+              isLight
+                ? 'bg-white/95 border-slate-200 shadow-[0_-10px_25px_rgba(0,0,0,0.05)]'
+                : 'bg-[#0a0a0a]/95 border-white/10 shadow-[0_-10px_25px_rgba(0,0,0,0.6)]'
+            }`}>
+              <div className="grid grid-cols-2 gap-3 max-w-lg mx-auto">
+                <a
+                  href="#login"
+                  onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    setCurrentActive('login');
+                    if (window.location.hash === '#login') {
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    } else {
+                      window.location.hash = '#login';
+                      window.dispatchEvent(new Event('hashchange'));
+                    }
+                  }}
+                  className={`py-3.5 px-4 text-center text-xs font-bold uppercase tracking-[0.16em] border transition-all cursor-pointer flex items-center justify-center ${
+                    currentActive === 'login'
+                      ? 'border-orange-500 text-orange-400 bg-orange-500/15 font-extrabold'
+                      : isLight
+                        ? 'border-slate-300 text-slate-900 hover:border-orange-500 hover:text-orange-600 bg-slate-50'
+                        : 'border-white/20 text-white hover:border-orange-500 hover:text-orange-400 bg-white/[0.04]'
+                  }`}
+                >
+                  LOG IN
+                </a>
+                <a
+                  href="#contact"
+                  onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    setCurrentActive('contact');
+                    if (window.location.hash === '#contact') {
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    } else {
+                      window.location.hash = '#contact';
+                      window.dispatchEvent(new Event('hashchange'));
+                    }
+                  }}
+                  className={`py-3.5 px-4 text-center text-xs font-bold uppercase tracking-[0.16em] transition-all cursor-pointer flex items-center justify-center ${
+                    currentActive === 'contact'
+                      ? 'bg-orange-600 text-white shadow-[0_0_20px_rgba(234,88,12,0.5)]'
+                      : isLight
+                        ? 'bg-slate-900 text-white hover:bg-orange-600'
+                        : 'bg-white text-black hover:bg-orange-500 hover:text-white'
+                  }`}
+                >
+                  GET STARTED
+                </a>
+              </div>
             </div>
           </div>
         )}
